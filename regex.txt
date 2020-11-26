@@ -1,0 +1,2 @@
+noreply@steampowered.com;^E1\w{5}\-0{2}\w{4}\-\w{2}@smtp\-\d{2}\-tuk1\.steampowered\.com
+
