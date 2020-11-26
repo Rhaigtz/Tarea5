@@ -1,3 +1,8 @@
 import yagmail
-yagmail.SMTP({"correo": "noreply@steampowered.com"}, "pwd").send(
-    'correo', 'titulo del mensaje', 'mucho texto mucho texto')
+
+html = open('index.html', 'r')
+
+yagmail.SMTP({"correo@dominio": "noreply@steampowered.com"}, "pwd").send(
+    'correo@target_dominio', 'Steam Support <notreply@steampowered.com>', html.read().replace('\n', ''))
+
+html.close()

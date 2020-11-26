@@ -6,8 +6,8 @@ import re
 
 imap_ssl_host = 'imap.gmail.com'  # imap.mail.yahoo.com
 imap_ssl_port = 993
-username = 'correo'
-password = 'pwd'
+username = ''
+password = ''
 
 
 criteria = []
@@ -21,14 +21,15 @@ line_counter = 0
 for regex in regexFile:
     line_counter = line_counter + 1
     sender = regex.split(';')
-
     criteria.append({
         'FROM': sender[0],
     })
     criteria_check.append({
         'FROM': sender[0],
-        'REGEX': sender[1]
+        'REGEX': sender[1],
+        'DATE': sender[2]
     })
+
 regexFile.close()
 
 #  Transforma el arreglo en el formato que lo recibe la query de imap
@@ -49,26 +50,25 @@ def search_string(uid_max, criteria):
     return '(%s)' % ' '.join(chain(*c))
 
 
+# Inicio de sesión y escucha de los correos en INBOX
 server = imaplib.IMAP4_SSL(imap_ssl_host, imap_ssl_port)
 server.login(username, password)
 server.select('INBOX')
 
 result, data = server.uid('search', None, search_string(uid_max, criteria))
 
+# Identificador del mensaje en el correo, solo seran escuchados mensajes entrantes.
 
 uids = [int(s) for s in data[0].split()]
 if uids:
     uid_max = max(uids)
-    # Initialize `uid_max`. Any UID less than or equal to `uid_max` will be ignored subsequently.
 
 server.logout()
 
-
-# Keep checking messages ...
-# I don't like using IDLE because Yahoo does not support it.
+# Conecto y reconecto para volver a cargar los nuevos mensajes.
 while 1:
-    # Conecto y reconecto para volver a cargar los nuevos mensajes.
 
+    # Vuelvo a iniciar la instancia de servidor ya que sino tira un error.
     server = imaplib.IMAP4_SSL(imap_ssl_host, imap_ssl_port)
     server.login(username, password)
     server.select('INBOX')
@@ -76,17 +76,22 @@ while 1:
     result, data = server.uid('search', None, search_string(uid_max, criteria))
     uids = [int(s) for s in data[0].split()]
     for uid in uids:
-        # Have to check again because Gmail sometimes does not obey UID criterion.
+
+        # Compruebo que el uid correponda a los ultimos.
         if uid > uid_max:
             result, data = server.uid(
-                'fetch', str(uid), '(RFC822)')  # fetch entire message
+                'fetch', str(uid), '(RFC822)')
             msg = email.message_from_string(data[0][1].decode())
             msg_id = msg.get('Message-ID').replace('<', '').replace('>', '')
 
             email_subject = msg['subject']
             email_from = msg['from']
 
+            print('Subject: ', email_subject, '\n')
+            print('Enviado por: ', email_from, '\n')
+
             for element in criteria_check:
+                print(msg_id)
                 from_email = re.search(element['FROM'], email_from)
 
                 if from_email:
@@ -95,9 +100,11 @@ while 1:
                         element['REGEX'].replace('\n', ''), msg_id)
                     is_match = bool(matched)
                     if not is_match:
-                        print('CORREO 100"%" FAKE 1 LINK MEGAUPLOAD CRACKWATCH \n')
+                        print(
+                            'Correo posiblemente falso, revisar regex ya que su validez es desde el: ', element['DATE'], '\n')
                     else:
-                        print('CORREITO REAL TE LO JURO POR DIEGUITO MARADONA \n')
+                        print(
+                            'Correo probablemente original segun criterio de regex.\n')
 
             uid_max = uid
 
